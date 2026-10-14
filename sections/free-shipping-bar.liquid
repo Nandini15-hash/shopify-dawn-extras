@@ -1,0 +1,100 @@
+{%- comment -%}
+  Free-shipping progress bar.
+  Threshold is entered in the store's base currency and converted with
+  Shopify.currency.rate in JS, so it stays correct under Shopify Markets.
+  The first paint is server-rendered (no layout jump); JS only updates it.
+{%- endcomment -%}
+
+{%- liquid
+  assign threshold_cents = section.settings.threshold | times: 100
+  assign remaining = threshold_cents | minus: cart.total_price
+  assign remaining_money = remaining | money
+  if threshold_cents > 0
+    assign pct = cart.total_price | times: 100 | divided_by: threshold_cents
+  else
+    assign pct = 100
+  endif
+  if pct > 100
+    assign pct = 100
+  endif
+-%}
+
+<free-shipping-bar
+  class="free-shipping-bar color-{{ section.settings.color_scheme }}"
+  data-threshold="{{ threshold_cents }}"
+  data-msg-remaining="{{ section.settings.msg_remaining | escape }}"
+  data-msg-done="{{ section.settings.msg_done | escape }}"
+>
+  <div class="page-width free-shipping-bar__inner">
+    <p class="free-shipping-bar__text" data-text aria-live="polite">
+      {%- if remaining > 0 -%}
+        {{ section.settings.msg_remaining | replace: '[amount]', remaining_money }}
+      {%- else -%}
+        {{ section.settings.msg_done }}
+      {%- endif -%}
+    </p>
+    <div
+      class="free-shipping-bar__track"
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="{{ pct }}"
+      data-track
+    >
+      <span class="free-shipping-bar__fill" style="width: {{ pct }}%" data-fill></span>
+    </div>
+  </div>
+</free-shipping-bar>
+
+<style>
+  .free-shipping-bar { display: block; padding: 0.8rem 0; }
+  .free-shipping-bar__inner { display: grid; gap: 0.6rem; }
+  .free-shipping-bar__text { margin: 0; font-size: 1.3rem; text-align: center; }
+  .free-shipping-bar__track {
+    height: 6px; border-radius: 3px; overflow: hidden;
+    background: rgba(var(--color-foreground), 0.12);
+  }
+  .free-shipping-bar__fill {
+    display: block; height: 100%;
+    background: rgb(var(--color-button));
+    transition: width 0.3s ease;
+  }
+</style>
+
+<script src="{{ 'free-shipping-bar.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "Free shipping bar",
+  "tag": "section",
+  "class": "section-free-shipping-bar",
+  "settings": [
+    {
+      "type": "number",
+      "id": "threshold",
+      "label": "Free shipping threshold (store currency, whole units)",
+      "default": 50
+    },
+    {
+      "type": "text",
+      "id": "msg_remaining",
+      "label": "Message when below threshold",
+      "info": "Use [amount] for the remaining amount.",
+      "default": "You're [amount] away from free shipping"
+    },
+    {
+      "type": "text",
+      "id": "msg_done",
+      "label": "Message when threshold reached",
+      "default": "You've unlocked free shipping!"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    }
+  ],
+  "presets": [{ "name": "Free shipping bar" }]
+}
+{% endschema %}

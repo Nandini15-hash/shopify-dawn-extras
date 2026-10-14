@@ -1,0 +1,98 @@
+{%- comment -%}
+  Sticky add-to-cart bar for Dawn product pages.
+  - Appears when the main "Add to cart" button scrolls out of view.
+  - Always adds the variant currently selected in the main product form.
+  - Refreshes Dawn's cart drawer / cart notification using the Section Rendering API.
+{%- endcomment -%}
+
+{{ 'sticky-atc.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'sticky-atc.js' | asset_url }}" defer="defer"></script>
+
+{%- if product -%}
+  {%- liquid
+    assign current = product.selected_or_first_available_variant
+  -%}
+
+  <sticky-atc
+    class="sticky-atc color-{{ section.settings.color_scheme }}"
+    data-default-variant="{{ current.id }}"
+    data-cart-url="{{ routes.cart_url }}"
+    inert
+  >
+    <div class="sticky-atc__inner page-width">
+      {%- if section.settings.show_image and product.featured_image -%}
+        {{
+          product.featured_image
+          | image_url: width: 120
+          | image_tag: class: 'sticky-atc__image', width: 48, height: 48, loading: 'lazy', alt: product.title
+        }}
+      {%- endif -%}
+
+      <div class="sticky-atc__info">
+        <p class="sticky-atc__title">{{ product.title | escape }}</p>
+        <p class="sticky-atc__meta">
+          <span data-variant-title>{% unless product.has_only_default_variant %}{{ current.title | escape }}{% endunless %}</span>
+          <span class="sticky-atc__price" data-price>{{ current.price | money }}</span>
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="button sticky-atc__button"
+        data-add
+        {% unless current.available %}
+          disabled
+        {% endunless %}
+      >
+        <span data-label>
+          {%- if current.available -%}{{ 'products.product.add_to_cart' | t }}{%- else -%}{{ 'products.product.sold_out' | t }}{%- endif -%}
+        </span>
+      </button>
+    </div>
+    <p class="sticky-atc__error" role="alert" data-error hidden></p>
+
+    {%- comment -%} Small variant lookup table so JS never has to guess prices or stock. {%- endcomment -%}
+    <script type="application/json" data-variants>
+      {
+        {%- for v in product.variants -%}
+          "{{ v.id }}": {
+            "title": {{ v.title | json }},
+            "price": {{ v.price | money | json }},
+            "available": {{ v.available | json }}
+          }{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      }
+    </script>
+    <script type="application/json" data-strings>
+      {
+        "add": {{ 'products.product.add_to_cart' | t | json }},
+        "soldOut": {{ 'products.product.sold_out' | t | json }},
+        "adding": "…"
+      }
+    </script>
+  </sticky-atc>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Sticky add to cart",
+  "tag": "section",
+  "class": "section-sticky-atc",
+  "enabled_on": { "templates": ["product"] },
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_image",
+      "label": "Show product image",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    }
+  ],
+  "presets": [{ "name": "Sticky add to cart" }]
+}
+{% endschema %}
